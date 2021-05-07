@@ -10,5 +10,5 @@ data class BookWithRentalRecord (
     var releaseDate: LocalDate? = null,
     var userId: Long? = null,
     var rentalDatetime: LocalDateTime? = null,
-    var returnDeadLine: LocalDateTime? = null,
+    var returnDeadline: LocalDateTime? = null,
 )
