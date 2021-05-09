@@ -3,26 +3,30 @@ package com.book.manager.application.service
 import com.book.manager.domain.model.Book
 import com.book.manager.domain.model.BookWithRental
 import com.book.manager.domain.repository.BookRepository
-import com.nhaarman.mockitokotlin2.mock
-import com.nhaarman.mockitokotlin2.whenever
-import org.assertj.core.api.Assertions
-import org.junit.jupiter.api.Test
+import io.kotest.core.spec.style.BehaviorSpec
+import io.kotest.matchers.shouldBe
+import io.mockk.every
+import io.mockk.mockk
 import java.time.LocalDate
 
-internal class BookServiceTest {
-    private val bookRepository = mock<BookRepository>()
+class BookServiceTest : BehaviorSpec() {
+    init {
+        val bookRepository = mockk<BookRepository>()
+        val bookService = BookService(bookRepository)
 
-    private val bookService = BookService(bookRepository)
+        given("getList") {
+            When("本のデータが存在している") {
+                val book = Book(1, "Kotlin入門", "コトリン太郎", LocalDate.now())
+                val bookWithRental = BookWithRental(book, null)
+                val expected = listOf(bookWithRental)
 
-    @Test
-    fun `getList when book list is exist then return list`() {
-        val book = Book(1, "Kotlin入門", "コトリン太郎", LocalDate.now())
-        val bookWithRental = BookWithRental(book, null)
-        val expected = listOf(bookWithRental)
+                every { bookRepository.findAllWithRental() } returns expected
 
-        whenever(bookRepository.findAllWithRental()).thenReturn(expected)
-
-        val result = bookService.getList()
-        Assertions.assertThat(expected).isEqualTo(result)
+                then("本の一覧データを取得できる") {
+                    val result = bookService.getList()
+                    result shouldBe expected
+                }
+            }
+        }
     }
 }

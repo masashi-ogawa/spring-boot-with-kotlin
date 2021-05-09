@@ -8,59 +8,65 @@ import com.book.manager.domain.model.User
 import com.book.manager.domain.repository.BookRepository
 import com.book.manager.domain.repository.RentalRepository
 import com.book.manager.domain.repository.UserRepository
-import com.nhaarman.mockitokotlin2.*
-import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.Assertions
-import org.junit.jupiter.api.Test
+import io.kotest.assertions.throwables.shouldThrow
+import io.kotest.core.spec.style.DescribeSpec
+import io.kotest.matchers.shouldBe
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.verify
 import java.time.LocalDate
 import java.time.LocalDateTime
 
-internal class RentalServiceTest {
-    private val userRepository = mock<UserRepository>()
-    private val bookRepository = mock<BookRepository>()
-    private val rentalRepository = mock<RentalRepository>()
+class RentalServiceTest : DescribeSpec() {
+    init {
+        describe("endRental") {
+            val userId = 100L
+            val bookId = 1000L
+            val user = User(userId, "test@test.com", "pass", "kotlin", RoleType.USER)
+            val book = Book(bookId, "Kotlin入門", "コトリン太郎", LocalDate.now())
 
-    private val rentalService = RentalService(userRepository, bookRepository, rentalRepository)
+            context("貸出中") {
+                val userRepository = mockk<UserRepository>()
+                val bookRepository = mockk<BookRepository>()
+                val rentalRepository = mockk<RentalRepository>()
+                val rentalService = RentalService(userRepository, bookRepository, rentalRepository)
+                val rental = Rental(bookId, userId, LocalDateTime.now(), LocalDateTime.MAX)
+                val bookWithRental = BookWithRental(book, rental)
 
-    @Test
-    fun `endRental when book is rental then delete to rental`() {
-        val userId = 100L
-        val bookId = 1000L
-        val user = User(userId, "test@test.com", "pass", "kotlin", RoleType.USER)
-        val book = Book(bookId, "Kotlin入門", "コトリン太郎", LocalDate.now())
-        val rental = Rental(bookId, userId, LocalDateTime.now(), LocalDateTime.MAX)
-        val bookWithRental = BookWithRental(book, rental)
+                every { userRepository.find(any() as Long) } returns user
+                every { bookRepository.findWithRental(any()) } returns bookWithRental
+                every { rentalRepository.endRental(any()) } returns Unit
 
-        whenever(userRepository.find(any() as Long)).thenReturn(user)
-        whenever(bookRepository.findWithRental(any())).thenReturn(bookWithRental)
+                it("レンタルのレコードが削除される") {
+                    rentalService.endRental(bookId, userId)
 
-        rentalService.endRental(bookId, userId)
+                    verify { userRepository.find(userId) }
+                    verify { bookRepository.findWithRental(bookId) }
+                    verify(exactly = 1) { rentalRepository.endRental(bookId) }
+                }
+            }
 
-        verify(userRepository).find(userId)
-        verify(bookRepository).findWithRental(bookId)
-        verify(rentalRepository).endRental(bookId)
-        verify(rentalRepository, times(1)).endRental(bookId)
-    }
+            context("貸出していない") {
+                val userRepository = mockk<UserRepository>()
+                val bookRepository = mockk<BookRepository>()
+                val rentalRepository = mockk<RentalRepository>()
+                val rentalService = RentalService(userRepository, bookRepository, rentalRepository)
+                val bookWithRental = BookWithRental(book, null)
 
-    @Test
-    fun `endRental when book is not rental when throw exception`() {
-        val userId = 100L
-        val bookId = 1000L
-        val user = User(userId, "test@test.com", "pass", "kotlin", RoleType.USER)
-        val book = Book(bookId, "Kotlin入門", "コトリン太郎", LocalDate.now())
-        val bookWithRental = BookWithRental(book, null)
+                every { userRepository.find(any() as Long) } returns user
+                every { bookRepository.findWithRental(any()) } returns bookWithRental
+                every { rentalRepository.endRental(any()) } returns Unit
 
-        whenever(userRepository.find(any() as Long)).thenReturn(user)
-        whenever(bookRepository.findWithRental(any())).thenReturn(bookWithRental)
+                val exception = shouldThrow<IllegalStateException> {
+                    rentalService.endRental(bookId, userId)
+                }
 
-        val exception = Assertions.assertThrows(IllegalStateException::class.java) {
-            rentalService.endRental(bookId, userId)
+                exception.message shouldBe "未貸出の商品です bookId:$bookId"
+
+                verify { userRepository.find(userId) }
+                verify { bookRepository.findWithRental(bookId) }
+                verify(exactly = 0) { rentalRepository.endRental(any()) }
+            }
         }
-
-        assertThat(exception.message).isEqualTo("未貸出の商品です bookId:$bookId")
-
-        verify(userRepository).find(userId)
-        verify(bookRepository).findWithRental(bookId)
-        verify(rentalRepository, times(0)).endRental(any())
     }
 }
