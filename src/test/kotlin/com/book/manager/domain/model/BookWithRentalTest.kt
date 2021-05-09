@@ -1,23 +1,31 @@
 package com.book.manager.domain.model
 
-import org.assertj.core.api.Assertions
-import org.junit.jupiter.api.Test
+import io.kotest.core.spec.style.DescribeSpec
+import io.kotest.matchers.shouldBe
 import java.time.LocalDate
 import java.time.LocalDateTime
 
-internal class BookWithRentalTest {
-    @Test
-    fun `isRental when rental is null then return false`() {
-        val book = Book(1, "Kotlin入門", "コトリン太郎", LocalDate.now())
-        val bookWithRental = BookWithRental(book, null)
-        Assertions.assertThat(bookWithRental.isRental).isEqualTo(false)
-    }
+class BookWithRentalTest : DescribeSpec() {
+    init {
+        describe("isRental") {
+            val book = Book(1, "Kotlin入門", "コトリン太郎", LocalDate.now())
 
-    @Test
-    fun `isRental when rental is not null then return true`() {
-        val book = Book(1, "Kotlin入門", "コトリン太郎", LocalDate.now())
-        val rental = Rental(1, 100, LocalDateTime.now(), LocalDateTime.MAX)
-        val bookWithRental = BookWithRental(book, rental)
-        Assertions.assertThat(bookWithRental.isRental).isEqualTo(true)
+            context("貸出されていない状態") {
+                val bookWithRental = BookWithRental(book, null)
+
+                it("falseになる") {
+                    bookWithRental.isRental shouldBe false
+                }
+            }
+
+            context("貸出中") {
+                val rental = Rental(1, 100, LocalDateTime.now(), LocalDateTime.MAX)
+                val bookWithRental = BookWithRental(book, rental)
+
+                it("trueになる") {
+                    bookWithRental.isRental shouldBe true
+                }
+            }
+        }
     }
 }
